@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>단어 암기 & 퀴즈 - 5대 핵심 어휘</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Noto Sans KR -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans KR', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .card-flip {
+            perspective: 1000px;
+        }
+        .card-inner {
+            transition: transform 0.5s ease-in-out;
+            transform-style: preserve-3d;
+        }
+        .card-flip.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            backface-visibility: hidden;
+        }
+        .card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans antialiased">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="showTab('list')">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                        <i class="fa-solid fa-book"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 leading-tight">영단어 퀴즈 앱</h1>
+                        <p class="text-xs text-slate-500">핵심 5개 단어 무작위 퀴즈</p>
+                    </div>
+                </div>
+                <nav class="flex space-x-1 sm:space-x-2">
+                    <button id="nav-list" onclick="showTab('list')" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors bg-brand-50 text-brand-700">
+                        <i class="fa-solid fa-list mr-1.5"></i>단어장
+                    </button>
+                    <button id="nav-flashcard" onclick="showTab('flashcard')" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors text-slate-600 hover:bg-slate-100">
+                        <i class="fa-solid fa-clone mr-1.5"></i>플래시카드
+                    </button>
+                    <button id="nav-quiz" onclick="showTab('quiz')" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors text-slate-600 hover:bg-slate-100">
+                        <i class="fa-solid fa-graduation-cap mr-1.5"></i>퀴즈 풀기
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
+
+        <!-- TAB 1: WORD LIST -->
+        <section id="tab-list" class="space-y-6">
+            <div class="bg-gradient-to-r from-brand-600 to-indigo-700 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex justify-between items-center">
+                <div>
+                    <span class="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold mb-2">필수 영단어 5선</span>
+                    <h2 class="text-2xl sm:text-3xl font-black mb-2">단어장 목록</h2>
+                    <p class="text-brand-100 text-xs sm:text-sm">단어의 정확한 뜻과 발음을 확인해보세요.</p>
+                </div>
+                <button onclick="showTab('quiz')" class="hidden sm:flex items-center gap-2 px-5 py-3 bg-white text-brand-700 rounded-xl font-bold text-sm hover:bg-brand-50 transition shadow">
+                    퀴즈 도전 <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <div id="word-list-container" class="space-y-4"></div>
+        </section>
+
+        <!-- TAB 2: FLASHCARD STUDY -->
+        <section id="tab-flashcard" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">플래시카드 암기 모드</h2>
+                    <p class="text-xs text-slate-500">카드를 클릭하면 단어의 뜻이 펼쳐집니다.</p>
+                </div>
+                <span id="card-counter" class="text-xs font-bold px-3 py-1 bg-slate-100 rounded-full text-slate-600">1 / 5</span>
+            </div>
+
+            <div class="max-w-md mx-auto">
+                <div id="flashcard" class="card-flip w-full h-80 cursor-pointer" onclick="flipCard()">
+                    <div class="card-inner relative w-full h-full text-center rounded-2xl shadow-lg border border-slate-200 bg-white">
+                        <!-- Card Front -->
+                        <div class="card-front absolute inset-0 w-full h-full rounded-2xl p-8 flex flex-col justify-between items-center bg-white">
+                            <span class="text-xs font-bold text-slate-400">클릭하여 뜻 확인하기</span>
+                            <div>
+                                <h2 id="card-word" class="text-4xl sm:text-5xl font-black text-brand-600 tracking-wide mb-2">describe</h2>
+                                <p class="text-xs text-slate-400">English Word</p>
+                            </div>
+                            <div class="text-xs text-brand-600 font-semibold flex items-center gap-1">
+                                <i class="fa-solid fa-rotate"></i> 뒤집기
+                            </div>
+                        </div>
+
+                        <!-- Card Back -->
+                        <div class="card-back absolute inset-0 w-full h-full rounded-2xl p-8 flex flex-col justify-between items-center bg-slate-900 text-white">
+                            <span class="text-xs font-bold text-slate-400">한국어 뜻 & 예문</span>
+                            <div class="space-y-3">
+                                <h3 id="card-meaning" class="text-2xl sm:text-3xl font-bold text-amber-400">묘사하다, 설명하다</h3>
+                                <div class="bg-white/10 p-3 rounded-xl text-left backdrop-blur-sm max-w-xs mx-auto">
+                                    <p id="card-example-en" class="text-xs italic text-slate-200">"Can you describe the man?"</p>
+                                    <p id="card-example-ko" class="text-xs text-slate-400 mt-1">"그 남자를 묘사해 줄 수 있나요?"</p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-400 flex items-center gap-1">
+                                <i class="fa-solid fa-rotate"></i> 앞면으로
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flashcard Controls -->
+                <div class="flex justify-between items-center mt-6">
+                    <button onclick="prevCard()" class="px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold text-xs sm:text-sm hover:bg-slate-50 transition flex items-center gap-2">
+                        <i class="fa-solid fa-arrow-left"></i> 이전
+                    </button>
+                    <button onclick="playCardAudio()" class="p-3 bg-brand-50 border border-brand-200 text-brand-600 rounded-full hover:bg-brand-100 transition shadow-sm" title="발음 듣기">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                    <button onclick="nextCard()" class="px-4 py-2.5 bg-brand-600 text-white rounded-xl font-semibold text-xs sm:text-sm hover:bg-brand-700 transition flex items-center gap-2 shadow-md">
+                        다음 <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: QUIZ MODE -->
+        <section id="tab-quiz" class="hidden space-y-6">
+            <!-- Start Quiz Card -->
+            <div id="quiz-start-screen" class="bg-white border border-slate-200 rounded-2xl p-8 text-center max-w-lg mx-auto shadow-sm">
+                <div class="w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">
+                    <i class="fa-solid fa-dice"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-2">랜덤 5문항 퀴즈</h2>
+                <p class="text-slate-600 text-sm mb-6">
+                    전체 20개 문제 은행에서 무작위로 5문제가 추출됩니다.<br>시작할 때마다 새로운 문제가 출제됩니다.
+                </p>
+                <button onclick="startQuiz()" class="w-full sm:w-auto px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg transition flex items-center justify-center gap-2 mx-auto">
+                    <i class="fa-solid fa-play"></i> 퀴즈 시작하기
+                </button>
+            </div>
+
+            <!-- Active Quiz Box -->
+            <div id="quiz-box" class="hidden max-w-xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <!-- Status Bar -->
+                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <span id="quiz-type-badge" class="px-2.5 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-md">객관식</span>
+                        <span id="quiz-progress-text" class="text-xs font-semibold text-slate-500">1 / 5</span>
+                    </div>
+                    <div class="w-28 bg-slate-200 rounded-full h-2">
+                        <div id="quiz-progress-bar" class="bg-brand-600 h-2 rounded-full transition-all duration-300" style="width: 20%;"></div>
+                    </div>
+                </div>
+
+                <!-- Quiz Questions -->
+                <div class="p-6 sm:p-8 space-y-6">
+                    <div>
+                        <span class="text-xs font-bold text-brand-600 uppercase tracking-wider">Question</span>
+                        <h3 id="quiz-question" class="text-xl font-bold text-slate-900 mt-1 leading-snug">
+                            질문 내용이 표시됩니다.
+                        </h3>
+                    </div>
+
+                    <!-- Dynamic Options -->
+                    <div id="quiz-answers-container" class="space-y-3"></div>
+
+                    <!-- Feedback Box -->
+                    <div id="quiz-feedback" class="hidden p-4 rounded-xl text-sm font-medium"></div>
+
+                    <!-- Next Button -->
+                    <div class="flex justify-end pt-4 border-t border-slate-100">
+                        <button id="quiz-next-btn" onclick="nextQuestion()" disabled class="px-6 py-2.5 bg-slate-200 text-slate-400 font-bold text-sm rounded-xl transition cursor-not-allowed">
+                            다음 문제 <i class="fa-solid fa-chevron-right ml-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Results Screen -->
+            <div id="quiz-result-screen" class="hidden max-w-md mx-auto bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-lg">
+                <div class="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-900 mb-1">퀴즈 완료!</h2>
+                <p class="text-xs text-slate-500 mb-6">학습 결과를 확인해보세요.</p>
+
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 mb-6 flex justify-around">
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">점수</p>
+                        <p id="result-score" class="text-3xl font-black text-brand-600 mt-1">100점</p>
+                    </div>
+                    <div class="border-r border-slate-200"></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">맞힌 문제</p>
+                        <p id="result-count" class="text-3xl font-black text-emerald-600 mt-1">5 / 5</p>
+                    </div>
+                </div>
+
+                <div id="result-details" class="text-left space-y-2 text-xs mb-6 max-h-48 overflow-y-auto pr-1"></div>
+
+                <div class="flex gap-3 justify-center">
+                    <button onclick="startQuiz()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-rotate"></i> 새 문제 추출하여 다시 풀기
+                    </button>
+                    <button onclick="showTab('list')" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition">
+                        단어장으로
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // 5 Core Words Data
+        const vocabData = [
+            {
+                word: "describe",
+                meaning: "묘사하다, 설명하다",
+                exampleEn: "Can you describe the thief to the police?",
+                exampleKo: "경찰에게 도둑의 생김새를 묘사해 줄 수 있나요?"
+            },
+            {
+                word: "prescribe",
+                meaning: "처방하다, 규정하다",
+                exampleEn: "The doctor will prescribe medicine for your cold.",
+                exampleKo: "의사가 당신의 감기에 맞는 약을 처방해 줄 것입니다."
+            },
+            {
+                word: "transcribe",
+                meaning: "기록하다, 받아적다, 번역/표기하다",
+                exampleEn: "She had to transcribe the recorded interview.",
+                exampleKo: "그녀는 녹음된 인터뷰 내용을 받아적어야 했다."
+            },
+            {
+                word: "inscribe",
+                meaning: "새기다, 쓰다",
+                exampleEn: "His name was inscribed on the golden trophy.",
+                exampleKo: "그의 이름이 황금 트로피에 새겨져 있었다."
+            },
+            {
+                word: "subscribe",
+                meaning: "구독하다, 신청하다",
+                exampleEn: "Don't forget to subscribe to our channel!",
+                exampleKo: "저희 채널을 구독하는 것을 잊지 마세요!"
+            }
+        ];
+
+        // 20 Questions Question Bank
+        const questionBank = [
+            // 1
+            {
+                type: "mcq",
+                badge: "단어 ➔ 뜻",
+                question: "단어 'prescribe'의 올바른 한국어 뜻은 무엇일까요?",
+                options: ["구독하다, 신청하다", "처방하다, 규정하다", "묘사하다, 설명하다", "새기다, 쓰다"],
+                answer: 1,
+                explain: "prescribe = 처방하다, 규정하다"
+            },
+            // 2
+            {
+                type: "mcq",
+                badge: "뜻 ➔ 단어",
+                question: "'기록하다, 받아적다, 번역/표기하다'라는 뜻을 가진 영단어는?",
+                options: ["describe", "transcribe", "inscribe", "subscribe"],
+                answer: 1,
+                explain: "transcribe = 기록하다, 받아적다, 번역/표기하다"
+            },
+            // 3
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'Don't forget to ______ to our YouTube channel!'",
+                options: ["describe", "inscribe", "subscribe", "prescribe"],
+                answer: 2,
+                explain: "채널을 구독하다라는 뜻에는 'subscribe'가 적절합니다."
+            },
+            // 4
+            {
+                type: "mcq",
+                badge: "단어 ➔ 뜻",
+                question: "단어 'inscribe'의 정확한 뜻은 무엇일까요?",
+                options: ["새기다, 쓰다", "처방하다, 규정하다", "구독하다, 신청하다", "묘사하다, 설명하다"],
+                answer: 0,
+                explain: "inscribe = 새기다, 쓰다"
+            },
+            // 5
+            {
+                type: "mcq",
+                badge: "뜻 ➔ 단어",
+                question: "'어떤 대상의 모양이나 상태를 묘사하다, 설명하다'에 해당하는 단어는?",
+                options: ["subscribe", "prescribe", "transcribe", "describe"],
+                answer: 3,
+                explain: "describe = 묘사하다, 설명하다"
+            },
+            // 6
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'The doctor will ______ an antibiotic for your infection.'",
+                options: ["prescribe", "subscribe", "transcribe", "describe"],
+                answer: 0,
+                explain: "의사가 약을 처방한다는 의미이므로 'prescribe'가 정답입니다."
+            },
+            // 7
+            {
+                type: "mcq",
+                badge: "문맥 완성",
+                question: "트로피나 반지 등에 이름을 '새겨 넣다'라고 표현할 때 가장 적절한 단어는?",
+                options: ["transcribe", "inscribe", "prescribe", "describe"],
+                answer: 1,
+                explain: "금속이나 돌 등에 문자를 새길 때는 'inscribe'를 사용합니다."
+            },
+            // 8
+            {
+                type: "mcq",
+                badge: "단어 ➔ 뜻",
+                question: "단어 'transcribe'의 뜻으로 가장 알맞은 것은?",
+                options: ["구독하다", "받아적다, 기록하다", "처방하다", "묘사하다"],
+                answer: 1,
+                explain: "transcribe = 기록하다, 받아적다, 번역/표기하다"
+            },
+            // 9
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'He tried to ______ the suspicious vehicle to the officer.'",
+                options: ["subscribe", "transcribe", "describe", "inscribe"],
+                answer: 2,
+                explain: "수상한 차량의 모습을 설명/묘사하는 것이므로 'describe'가 맞습니다."
+            },
+            // 10
+            {
+                type: "mcq",
+                badge: "단어 ➔ 뜻",
+                question: "단어 'subscribe'의 올바른 뜻은?",
+                options: ["새기다, 쓰다", "구독하다, 신청하다", "기록하다, 받아적다", "처방하다, 규정하다"],
+                answer: 1,
+                explain: "subscribe = 구독하다, 신청하다"
+            },
+            // 11
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'The secretary was asked to ______ the audio notes from the meeting.'",
+                options: ["transcribe", "inscribe", "prescribe", "subscribe"],
+                answer: 0,
+                explain: "음성 녹음 내용을 문자로 받아적는 것은 'transcribe'입니다."
+            },
+            // 12
+            {
+                type: "mcq",
+                badge: "뜻 ➔ 단어",
+                question: "'의사가 환자에게 약이나 치료법을 처방하다'라는 뜻의 단어는?",
+                options: ["describe", "prescribe", "inscribe", "subscribe"],
+                answer: 1,
+                explain: "prescribe = 처방하다, 규정하다"
+            },
+            // 13
+            {
+                type: "mcq",
+                badge: "동의어/뜻 유의",
+                question: "다음 중 'Write or carve words on a surface' (표면에 글자를 새기다)에 해당하는 단어는?",
+                options: ["inscribe", "subscribe", "describe", "transcribe"],
+                answer: 0,
+                explain: "inscribe = 글자나 문양을 새기다"
+            },
+            // 14
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'Their wedding date was ______ inside the gold ring.'",
+                options: ["described", "inscribed", "prescribed", "subscribed"],
+                answer: 1,
+                explain: "반지 안쪽에 결혼 날짜가 새겨졌으므로 'inscribed'가 정답입니다."
+            },
+            // 15
+            {
+                type: "mcq",
+                badge: "반대/구분 퀴즈",
+                question: "신문이나 정기 간행물, 온라인 서비스를 '정기 구독하다'를 뜻하는 단어는?",
+                options: ["subscribe", "transcribe", "prescribe", "describe"],
+                answer: 0,
+                explain: "subscribe = 구독하다"
+            },
+            // 16
+            {
+                type: "mcq",
+                badge: "단어 ➔ 뜻",
+                question: "단어 'describe'의 우리말 뜻으로 올바른 것은?",
+                options: ["처방하다", "구독하다", "묘사하다, 설명하다", "기록하다"],
+                answer: 2,
+                explain: "describe = 묘사하다, 설명하다"
+            },
+            // 17
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'I decide to ______ to a monthly science magazine.'",
+                options: ["subscribe", "prescribe", "describe", "inscribe"],
+                answer: 0,
+                explain: "월간 잡지를 정기 구독하므로 'subscribe'가 정답입니다."
+            },
+            // 18
+            {
+                type: "mcq",
+                badge: "예문 해석 연계",
+                question: "'She transcribed the interview'의 올바른 해석은?",
+                options: [
+                    "그녀는 인터뷰 내용을 묘사했다.",
+                    "그녀는 인터뷰 내용을 받아적었다.",
+                    "그녀는 인터뷰 예약을 신청했다.",
+                    "그녀는 인터뷰 규칙을 처방했다."
+                ],
+                answer: 1,
+                explain: "transcribe = 받아적다, 기록하다"
+            },
+            // 19
+            {
+                type: "mcq",
+                badge: "뜻 ➔ 단어",
+                question: "영어로 '말이나 글로 상황, 대상의 특징을 상세히 전달하다'를 뜻하는 단어는?",
+                options: ["describe", "inscribe", "prescribe", "transcribe"],
+                answer: 0,
+                explain: "describe = 묘사하다, 설명하다"
+            },
+            // 20
+            {
+                type: "fill",
+                badge: "문장 채우기",
+                question: "다음 빈칸에 알맞은 단어는?\n\n'Strict rules ______ how the examination should be conducted.'",
+                options: ["prescribe", "transcribe", "inscribe", "subscribe"],
+                answer: 0,
+                explain: "규칙이 시험 방식을 '규정하다/지시하다'라는 뜻으로 prescribe가 사용됩니다."
+            }
+        ];
+
+        // Global State Variables
+        let activeQuizQuestions = [];
+        let currentCardIndex = 0;
+        let isCardFlipped = false;
+        let currentQuizIndex = 0;
+        let userQuizAnswers = [];
+        let score = 0;
+
+        // Render Word List
+        function renderWordList() {
+            const container = document.getElementById('word-list-container');
+            container.innerHTML = '';
+
+            vocabData.forEach((item) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4";
+                card.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xl font-bold text-slate-900">${item.word}</h3>
+                            <button onclick="speakWord('${item.word}')" class="text-brand-600 hover:text-brand-700 p-1" title="발음 듣기">
+                                <i class="fa-solid fa-volume-high"></i>
+                            </button>
+                        </div>
+                        <p class="text-sm font-semibold text-brand-600">${item.meaning}</p>
+                        <p class="text-xs text-slate-500 italic">"${item.exampleEn}" (${item.exampleKo})</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Tab Navigation
+        function showTab(tabName) {
+            ['list', 'flashcard', 'quiz'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`nav-${t}`);
+                if (t === tabName) {
+                    el.classList.remove('hidden');
+                    btn.className = "px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors bg-brand-50 text-brand-700";
+                } else {
+                    el.classList.add('hidden');
+                    btn.className = "px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors text-slate-600 hover:bg-slate-100";
+                }
+            });
+        }
+
+        // Flashcard Logic
+        function updateCardUI() {
+            const card = vocabData[currentCardIndex];
+            document.getElementById('card-word').textContent = card.word;
+            document.getElementById('card-meaning').textContent = card.meaning;
+            document.getElementById('card-example-en').textContent = `"${card.exampleEn}"`;
+            document.getElementById('card-example-ko').textContent = `"${card.exampleKo}"`;
+            document.getElementById('card-counter').textContent = `${currentCardIndex + 1} / ${vocabData.length}`;
+            
+            document.getElementById('flashcard').classList.remove('flipped');
+            isCardFlipped = false;
+        }
+
+        function flipCard() {
+            document.getElementById('flashcard').classList.toggle('flipped');
+            isCardFlipped = !isCardFlipped;
+        }
+
+        function nextCard() {
+            currentCardIndex = (currentCardIndex + 1) % vocabData.length;
+            updateCardUI();
+        }
+
+        function prevCard() {
+            currentCardIndex = (currentCardIndex - 1 + vocabData.length) % vocabData.length;
+            updateCardUI();
+        }
+
+        function playCardAudio() {
+            speakWord(vocabData[currentCardIndex].word);
+        }
+
+        function speakWord(word) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'en-US';
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Random Selection Helper (Fisher-Yates Shuffle)
+        function getRandom5Questions() {
+            const shuffled = [...questionBank];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled.slice(0, 5);
+        }
+
+        // Start / Reset Quiz
+        function startQuiz() {
+            activeQuizQuestions = getRandom5Questions();
+            currentQuizIndex = 0;
+            userQuizAnswers = [];
+            score = 0;
+
+            document.getElementById('quiz-start-screen').classList.add('hidden');
+            document.getElementById('quiz-result-screen').classList.add('hidden');
+            document.getElementById('quiz-box').classList.remove('hidden');
+
+            renderQuestion();
+        }
+
+        // Render Current Question
+        function renderQuestion() {
+            const q = activeQuizQuestions[currentQuizIndex];
+            const container = document.getElementById('quiz-answers-container');
+            const feedback = document.getElementById('quiz-feedback');
+            const nextBtn = document.getElementById('quiz-next-btn');
+
+            container.innerHTML = '';
+            feedback.classList.add('hidden');
+            nextBtn.disabled = true;
+            nextBtn.className = "px-6 py-2.5 bg-slate-200 text-slate-400 font-bold text-sm rounded-xl transition cursor-not-allowed";
+
+            document.getElementById('quiz-type-badge').textContent = q.badge;
+            document.getElementById('quiz-progress-text').textContent = `${currentQuizIndex + 1} / ${activeQuizQuestions.length}`;
+            document.getElementById('quiz-progress-bar').style.width = `${((currentQuizIndex + 1) / activeQuizQuestions.length) * 100}%`;
+            document.getElementById('quiz-question').innerHTML = q.question.replace(/\n/g, '<br>');
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 transition font-medium text-sm flex items-center justify-between";
+                btn.innerHTML = `<span>${idx + 1}. ${opt}</span><i class="fa-regular fa-circle text-slate-300"></i>`;
+                btn.onclick = () => selectOption(idx, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectOption(selectedIdx, btnElem) {
+            const q = activeQuizQuestions[currentQuizIndex];
+            const feedback = document.getElementById('quiz-feedback');
+            const nextBtn = document.getElementById('quiz-next-btn');
+
+            const container = document.getElementById('quiz-answers-container');
+            const buttons = container.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            const isCorrect = selectedIdx === q.answer;
+            userQuizAnswers.push({
+                question: q.question,
+                isCorrect: isCorrect,
+                userAns: q.options[selectedIdx],
+                correctAns: q.options[q.answer],
+                explain: q.explain
+            });
+
+            if (isCorrect) {
+                score += 20;
+                btnElem.className = "w-full text-left p-4 rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-800 font-bold text-sm flex items-center justify-between";
+                feedback.className = "p-4 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-800 border border-emerald-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600 mr-2"></i><strong>정답입니다!</strong> (${q.explain})`;
+            } else {
+                btnElem.className = "w-full text-left p-4 rounded-xl border border-rose-500 bg-rose-50 text-rose-800 font-bold text-sm flex items-center justify-between";
+                buttons[q.answer].className = "w-full text-left p-4 rounded-xl border border-emerald-500 bg-emerald-50 text-emerald-800 font-bold text-sm flex items-center justify-between";
+                feedback.className = "p-4 rounded-xl text-sm font-medium bg-rose-50 text-rose-800 border border-rose-200";
+                feedback.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-600 mr-2"></i><strong>오답입니다.</strong> 정답: <strong>${q.options[q.answer]}</strong>`;
+            }
+
+            feedback.classList.remove('hidden');
+            nextBtn.disabled = false;
+            nextBtn.className = "px-6 py-2.5 bg-brand-600 text-white font-bold text-sm rounded-xl hover:bg-brand-700 transition shadow";
+        }
+
+        function nextQuestion() {
+            currentQuizIndex++;
+            if (currentQuizIndex < activeQuizQuestions.length) {
+                renderQuestion();
+            } else {
+                showQuizResults();
+            }
+        }
+
+        function showQuizResults() {
+            document.getElementById('quiz-box').classList.add('hidden');
+            const resultScreen = document.getElementById('quiz-result-screen');
+            resultScreen.classList.remove('hidden');
+
+            const correctCount = userQuizAnswers.filter(a => a.isCorrect).length;
+            document.getElementById('result-score').textContent = `${score}점`;
+            document.getElementById('result-count').textContent = `${correctCount} / ${activeQuizQuestions.length}`;
+
+            const detailsBox = document.getElementById('result-details');
+            detailsBox.innerHTML = '<h4 class="font-bold text-slate-700 mb-2">이번 라운드 문제 요약:</h4>';
+
+            userQuizAnswers.forEach((ans, idx) => {
+                const item = document.createElement('div');
+                item.className = `p-3 rounded-lg border ${ans.isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'}`;
+                item.innerHTML = `
+                    <div class="flex justify-between font-bold mb-1">
+                        <span>Q${idx + 1}. ${ans.isCorrect ? '<span class="text-emerald-600">정답</span>' : '<span class="text-rose-600">오답</span>'}</span>
+                    </div>
+                    <p class="text-slate-600 text-xs">${ans.explain}</p>
+                `;
+                detailsBox.appendChild(item);
+            });
+        }
+
+        // Initialize App
+        window.onload = function() {
+            renderWordList();
+            updateCardUI();
+        };
+    </script>
+</body>
+</html>
